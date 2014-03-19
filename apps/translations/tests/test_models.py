@@ -70,6 +70,31 @@ class TranslationSequenceTestCase(TestCase):
             'Translation sequence needs to keep increasing.')
 
 
+class TranslationManagerTest(TestCase):
+    fixtures = ['testapp/test_models.json']
+
+    def test_remove_for(self):
+        with translation.override('de'):
+            o = TranslatedModel.objects.get(id=1)
+            o.description = 'some description'  # Add de translation.
+            o.save()
+
+            eq_(o.name.locale, 'de')
+            orig_name_autoid = o.name.autoid
+            eq_(o.description.locale, 'de')
+            orig_description_autoid = o.description.autoid
+
+            Translation.objects.remove_for(o, 'de')
+            o = TranslatedModel.objects.no_cache().get(id=1)
+            eq_(o.name.locale.lower(), 'en-us')  # Fallback translation.
+            assert orig_name_autoid != o.name.autoid
+            eq_(o.description.locale.lower(), 'en-us')  # Fallback translation.
+            assert orig_description_autoid != o.description.autoid
+
+    def test_delete(self):
+        assert False, "not implemented yet"
+
+
 class TranslationTestCase(TestCase):
     fixtures = ['testapp/test_models.json']
 

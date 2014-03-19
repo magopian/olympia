@@ -14,7 +14,18 @@ from . import utils
 log = commonware.log.getLogger('z.translations')
 
 
+class TranslationQuerySet(models.query.QuerySet):
+
+    def delete(self):
+        """Delegate the call to Translation.delete."""
+        for translation in self.queryset:
+            translation.delete()
+
+
 class TranslationManager(amo.models.ManagerBase):
+
+    def get_queryset(self):
+        return TranslationQuerySet(self.model, using=self._db)
 
     def remove_for(self, obj, locale):
         """Remove a locale for the given object."""
