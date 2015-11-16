@@ -464,12 +464,12 @@ class UserProfile(amo.models.OnChangeMixin, amo.models.ModelBase,
         return c
 
     @contextmanager
-    def activate_lang(self, override_lang):
+    def activate_lang(self):
         """
         Activate the language for the user. If none is set will go to the site
         default which is en-US.
         """
-        lang = override_lang or self.lang or settings.LANGUAGE_CODE
+        lang = self.lang if self.lang else settings.LANGUAGE_CODE
         old = translation.get_language()
         tower.activate(lang)
         yield

@@ -14,7 +14,7 @@ from django.core.files.storage import default_storage as storage
 from django.db import models, transaction
 from django.dispatch import receiver
 from django.db.models import Max, Q, signals as dbsignals
-from django.utils.translation import override, trans_real
+from django.utils.translation import trans_real
 
 import caching.base as caching
 import commonware.log
@@ -32,8 +32,8 @@ from amo import helpers
 from amo.decorators import use_master, write
 from amo.fields import DecimalCharField
 from amo.utils import (attach_trans_dict, cache_ns_key, chunked, find_language,
-                       JSONEncoder, send_mail, slugify, sorted_groupby, timer,
-                       to_language, urlparams)
+                       JSONEncoder, no_translation, send_mail, slugify,
+                       sorted_groupby, timer, to_language, urlparams)
 from amo.urlresolvers import get_outgoing_url, reverse
 from files.models import File
 from reviews.models import Review
@@ -454,8 +454,11 @@ class Addon(amo.models.OnChangeMixin, amo.models.ModelBase):
             to = [settings.FLIGTAR]
             user = amo.get_user()
 
+            # Don't localize email to admins, use 'en-US' always.
+            with no_translation():
+                atype = amo.ADDON_TYPE.get(self.type).upper()
             context = {
-                'atype': amo.ADDON_TYPE.get(self.type).upper(),
+                'atype': atype,
                 'authors': [u.email for u in self.authors.all()],
                 'adu': self.average_daily_users,
                 'guid': self.guid,
@@ -485,7 +488,9 @@ class Addon(amo.models.OnChangeMixin, amo.models.ModelBase):
             REASON GIVEN BY USER FOR DELETION: %(reason)s
             """ % context
             log.debug('Sending delete email for %(atype)s %(id)s' % context)
-            subject = 'Deleting %(atype)s %(slug)s (%(id)d)' % context
+            # Don't localize email to admins, use 'en-US' always.
+            with no_translation():
+                subject = 'Deleting %(atype)s %(slug)s (%(id)d)' % context
 
             # Update or NULL out various fields.
             models.signals.pre_delete.send(sender=Addon, instance=self)
@@ -496,9 +501,7 @@ class Addon(amo.models.OnChangeMixin, amo.models.ModelBase):
                         _current_version=None, guid=None)
             models.signals.post_delete.send(sender=Addon, instance=self)
 
-            # Don't localize email to admins, use 'en-US' always.
-            with override('en-US'):
-                send_mail(subject, email_msg, recipient_list=to)
+            send_mail(subject, email_msg, recipient_list=to)
         else:
             # Real deletion path.
             super(Addon, self).delete()
